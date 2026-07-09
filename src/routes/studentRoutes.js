@@ -1,13 +1,20 @@
+// ============================================
+// FILE: src/routes/studentRoutes.js
+// PURPOSE: API route definitions for student management
+// ============================================
+
 const express = require('express');
-const router = express.Router(); 
+const router = express.Router();
 const studentController = require('../controllers/studentController');
 
 const { validateStudent } = require('../middlewares/validationMiddleware');
-const { protect, checkPermission } = require('../middlewares/authMiddleware'); 
-const upload = require('../middlewares/uploadMiddleware'); 
+const { protect, checkPermission } = require('../middlewares/authMiddleware');
+const upload = require('../middlewares/uploadMiddleware');
 
-// 🔍 CRITICAL SAFETY CHECK: Terminal par check karne ke liye ke kaun sa controller undefined hay
-console.log('--- 🛡️ ROUTE DEPENDENCY CHECK ---');
+// ============================================
+// DEBUG: Check if controllers are loaded
+// ============================================
+console.log('--- STUDENT ROUTES INITIALIZED ---');
 console.log('getAllStudents:', typeof studentController.getAllStudents);
 console.log('getStudentById:', typeof studentController.getStudentById);
 console.log('createStudent:', typeof studentController.createStudent);
@@ -17,38 +24,69 @@ console.log('uploadProfilePicture:', typeof studentController.uploadProfilePictu
 console.log('protect:', typeof protect);
 console.log('checkPermission:', typeof checkPermission);
 console.log('upload:', typeof upload);
-console.log('--------------------------------');
+console.log('------------------------------------');
 
-// 1. Read Operations
-if (studentController.getAllStudents) {
-  router.get('/', protect, checkPermission('read:students'), studentController.getAllStudents);
-}
-if (studentController.getStudentById) {
-  router.get('/:id', protect, checkPermission('read:students'), studentController.getStudentById);
-}
+// ============================================
+// READ Operations (GET)
+// ============================================
 
-// 2. Write Operations
-if (studentController.createStudent) {
-  router.post('/', protect, checkPermission('write:students'), validateStudent, studentController.createStudent);
-}
-if (studentController.updateStudent) {
-  router.put('/:id', protect, checkPermission('write:students'), validateStudent, studentController.updateStudent);
-}
+// Get all students with pagination and filters
+router.get(
+    '/',
+    protect,
+    checkPermission('manage:students'), // 🟢 Comma fixed here
+    studentController.getAllStudents
+);
 
-// 3. Delete Operation
-if (studentController.deleteStudent) {
-  router.delete('/:id', protect, checkPermission('delete:students'), studentController.deleteStudent);
-}
+// Get single student by ID
+router.get(
+    '/:id',
+    protect,
+    checkPermission('manage:students'), // 🟢 Semicolon changed to comma here
+    studentController.getStudentById
+);
 
-// NEW: Upload Student Profile Picture
-if (studentController.uploadProfilePicture && upload) {
-  router.patch(
-    '/:id/profile-picture', 
-    protect, 
-    checkPermission('write:students'), 
-    upload.single('profile_picture'), 
+// ============================================
+// WRITE Operations (POST, PUT, DELETE)
+// ============================================
+
+// Create new student
+router.post(
+    '/',
+    protect,
+    checkPermission('write:students'),
+    validateStudent,
+    studentController.createStudent
+);
+
+// Update student
+router.put(
+    '/:id',
+    protect,
+    checkPermission('write:students'),
+    validateStudent,
+    studentController.updateStudent
+);
+
+// Delete student (soft delete)
+router.delete(
+    '/:id',
+    protect,
+    checkPermission('delete:students'),
+    studentController.deleteStudent
+);
+
+// ============================================
+// PROFILE PICTURE UPLOAD
+// ============================================
+
+// Upload profile picture
+router.patch(
+    '/:id/profile-picture',
+    protect,
+    checkPermission('write:students'),
+    upload.single('profile_picture'),
     studentController.uploadProfilePicture
-  );
-}
+);
 
 module.exports = router;

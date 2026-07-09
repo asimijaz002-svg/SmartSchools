@@ -1,74 +1,133 @@
 const jwt = require('jsonwebtoken');
-const AppError = require('../utils/appError');
-const userRepository = require('../repositories/userRepository');
+const AppError = require('../utils/appError'); // Agar appError ka path mukhtalif hai to check karlein
 
-// 1. JWT Security Token Verification Middleware
-const protect = async (req, res, next) => {
-  try {
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-
-    if (!token) {
-      return next(new AppError('Access denied. No authentication token provided.', 401));
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const currentUser = await userRepository.findById(decoded.id);
-    if (!currentUser) {
-      return next(new AppError('The account belonging to this security token has been deactivated.', 401));
-    }
-
-    req.user = currentUser;
-    next();
-
-  } catch (error) {
-    return next(new AppError('Invalid or expired authentication token. Please login again.', 401));
-  }
-};
-
-// 2. Granular, Module-Based Permissions Matrix (Enterprise Standard)
 const rolePermissions = {
+  super_admin: [
+    'manage:schools',
+    'manage:admins',
+    'read:settings',
+    'write:settings',
+    'delete:settings',
+    'read:students',
+    'write:students',
+    'delete:students',
+    'read:attendance',
+    'write:attendance',
+    'read:fees',
+    'write:fees',
+    'read:employees',
+    'write:employees',
+    'delete:employees',
+    'read:exams',
+    'write:exams',
+    'delete:exams',
+    'read:library',
+    'write:library',
+    'delete:library',
+    'read:transport',
+    'write:transport',
+    'delete:transport',
+    'read:inventory',
+    'write:inventory',
+    'delete:inventory',
+    'read:reports',      // 👈 ADD THIS
+    'read:dashboard'
+  ],
+  admin: [
+    'read:students',
+    'write:students',
+    'delete:students',
+    'write:fees',
+    'write:grades',
+    'read:attendance',
+    'write:attendance',
+    'read:settings',
+    'write:settings',
+    'delete:settings',
+    'read:fees',
+    'write:fees',
+    'read:employees',
+    'write:employees',
+    'delete:employees',
+    'read:exams',
+    'write:exams',
+    'delete:exams',
+    'read:library',
+    'write:library',
+    'delete:library',
+    'read:transport',
+    'write:transport',
+    'delete:transport',
+    'read:inventory',
+    'write:inventory',
+    'delete:inventory',
+    'read:reports',      // 👈 ADD THIS
+    'read:dashboard'
+  ],
+  teacher: [
+    'read:students',
+    'write:grades',
+    'read:attendance',
+    'write:attendance',
+    'read:exams',
+    'write:exams',
+    'read:library',
+    'write:library',
+    'read:reports',      // 👈 ADD THIS
+    'read:dashboard'
+  ],
+  accountant: [
+    'read:students',
+    'read:fees',
+    'write:fees',
+    'read:reports'       // 👈 ADD THIS
+  ],
   staff: [
     'read:students'
   ],
-  teacher: [
-    'read:students', 
-    'write:grades'
+  student: [
+    'read:profile'
   ],
-  accountant: [
-    'read:students', 
-    'write:fees'
-  ],
-  admin: [
-    'read:students', 
-    'write:students', 
-    'delete:students', 
-    'write:fees', 
-    'write:grades'
+  parent: [
+    'read:dashboard'
   ]
 };
 
-// 3. Authorization Check Middleware
+// 1. Protect Middleware Definition
+const protect = async (req, res, next) => {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1]; // [1] to extract the actual token string
+    }
+
+    if (!token) {
+      return next(new AppError('You are not logged in! Please log in to get access.', 401));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded; 
+    next();
+  } catch (error) {
+    return next(new AppError('Invalid token or session expired.', 401));
+  }
+};
+
+// 2. CheckPermission Middleware Definition (Standard function layout)
 const checkPermission = (requiredPermission) => {
   return (req, res, next) => {
-    // Confirm the protect middleware ran first
-    if (!req.user) {
-      return next(new AppError('Authentication required before checking permissions.', 401));
-    }
-
     const userPermissions = rolePermissions[req.user.role] || [];
 
-    // Check if the user's role has the required granular permission
     if (!userPermissions.includes(requiredPermission)) {
-      return next(new AppError('Permission Denied. You do not have the required access privileges for this action.', 403)); // 403 Forbidden
+      return next(new AppError('Permission Denied. You do not have the required access privileges for this action.', 403));
     }
 
-    next(); // Permission approved, proceed!
+    next();
   };
 };
 
-module.exports = { protect, checkPermission };
+// 3. Exporting both named functions correctly
+module.exports = { 
+  protect, 
+  checkPermission 
+};

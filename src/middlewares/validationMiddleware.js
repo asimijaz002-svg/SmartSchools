@@ -1,35 +1,61 @@
-const AppError = require('../utils/appError');
+// ============================================
+// FILE: src/middlewares/validationMiddleware.js
+// PURPOSE: Centralized request validation
+// ============================================
 
 const validateStudent = (req, res, next) => {
   const { roll_no, first_name, last_name, email, class_name } = req.body;
+  const errors = [];
 
-  // 1. Check required fields for registration (POST requests)
-  if (req.method === 'POST') {
-    if (!roll_no || !first_name || !last_name || !class_name) {
-      return next(new AppError('Missing required fields: roll_no, first_name, last_name, and class_name are mandatory.', 400));
-    }
-  }
+  if (!roll_no) errors.push('Roll number is required');
+  if (!first_name) errors.push('First name is required');
+  if (!last_name) errors.push('Last name is required');
+  if (!class_name) errors.push('Class name is required');
 
-  // 2. Validate email format (if email is provided)
-  if (email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return next(new AppError('Please provide a valid email address format (e.g., user@domain.com).', 400));
-    }
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+      errors.push('Invalid email format');
   }
 
-  // 3. Prevent SQL overflows by checking field lengths (Security Standard)
-  if (first_name && first_name.length > 100) {
-    return next(new AppError('First name cannot exceed 100 characters.', 400));
-  }
-  if (last_name && last_name.length > 100) {
-    return next(new AppError('Last name cannot exceed 100 characters.', 400));
-  }
-  if (roll_no && roll_no.length > 50) {
-    return next(new AppError('Roll number cannot exceed 50 characters.', 400));
+  if (errors.length > 0) {
+      return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors
+      });
   }
 
-  next(); // Data is valid, proceed to the controller!
+  next();
 };
 
-module.exports = { validateStudent };
+const validateAttendance = (req, res, next) => {
+  const { student_id, class_id, attendance_date, status_id } = req.body;
+  const errors = [];
+
+  if (!student_id) errors.push('Student ID is required');
+  if (!class_id) errors.push('Class ID is required');
+  if (!attendance_date) errors.push('Attendance date is required');
+  if (!status_id) errors.push('Status ID is required');
+
+  if (attendance_date && isNaN(Date.parse(attendance_date))) {
+      errors.push('Invalid attendance date format');
+  }
+
+  if (status_id && isNaN(parseInt(status_id))) {
+      errors.push('Status ID must be a number');
+  }
+
+  if (errors.length > 0) {
+      return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors
+      });
+  }
+
+  next();
+};
+
+module.exports = {
+  validateStudent,
+  validateAttendance
+};
