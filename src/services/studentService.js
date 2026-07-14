@@ -94,23 +94,37 @@ const studentService = {
         const page = parseInt(options.page) || 1;
         const limit = parseInt(options.limit) || 10;
         const offset = (page - 1) * limit;
-
-        const allowedSortFields = ['first_name', 'last_name', 'roll_no', 'created_at'];
-        const sortBy = allowedSortFields.includes(options.sortBy) ? options.sortBy : 'created_at';
+    
+        // ✅ Only use columns that exist
+        const allowedSortFields = ['roll_no', 'first_name', 'last_name'];
+        const sortBy = allowedSortFields.includes(options.sortBy) ? options.sortBy : 'roll_no';
         const sortOrder = (options.sortOrder && options.sortOrder.toUpperCase() === 'ASC') ? 'ASC' : 'DESC';
-
+    
         const search = options.search || null;
         const class_name = options.class_name || null;
-
-        const activeSession = await sessionRepository.getActiveSession();
-        const academic_session_id = options.academic_session_id
-            ? parseInt(options.academic_session_id)
-            : (activeSession ? activeSession.id : null);
-
-        const students = await studentRepository.findAll({ search, class_name, academic_session_id, sortBy, sortOrder, limit, offset });
+    
+        let academic_session_id = null;
+        if (options.academic_session_id) {
+            academic_session_id = parseInt(options.academic_session_id);
+        }
+        if (!academic_session_id) {
+            const activeSession = await sessionRepository.getActiveSession();
+            academic_session_id = activeSession ? activeSession.id : null;
+        }
+    
+        const students = await studentRepository.findAll({ 
+            search, 
+            class_name, 
+            academic_session_id, 
+            sortBy, 
+            sortOrder, 
+            limit, 
+            offset 
+        });
+        
         const totalRecords = await studentRepository.countAll({ search, class_name, academic_session_id });
         const totalPages = Math.ceil(totalRecords / limit);
-
+    
         return {
             data: students,
             pagination: { page, limit, total_records: totalRecords, total_pages: totalPages, academic_session_id }

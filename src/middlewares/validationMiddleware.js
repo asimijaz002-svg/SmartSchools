@@ -4,27 +4,46 @@
 // ============================================
 
 const validateStudent = (req, res, next) => {
-  const { roll_no, first_name, last_name, email, class_name } = req.body;
-  const errors = [];
+    // ✅ Skip validation for GET and DELETE requests (no body)
+    if (req.method === 'GET' || req.method === 'DELETE') {
+        return next();
+    }
 
-  if (!roll_no) errors.push('Roll number is required');
-  if (!first_name) errors.push('First name is required');
-  if (!last_name) errors.push('Last name is required');
-  if (!class_name) errors.push('Class name is required');
+    const { roll_no, first_name, last_name, email, class_name } = req.body || {};
 
-  if (email && !/^\S+@\S+\.\S+$/.test(email)) {
-      errors.push('Invalid email format');
-  }
+    // ✅ For PUT requests, only validate fields that are being updated
+    const isUpdate = req.method === 'PUT' || req.method === 'PATCH';
 
-  if (errors.length > 0) {
-      return res.status(400).json({
-          success: false,
-          message: 'Validation failed',
-          errors
-      });
-  }
+    const errors = [];
 
-  next();
+    // ✅ For POST (create), all fields are required
+    if (!isUpdate) {
+        if (!roll_no) errors.push('Roll number is required');
+        if (!first_name) errors.push('First name is required');
+        if (!last_name) errors.push('Last name is required');
+        if (!class_name) errors.push('Class name is required');
+    } else {
+        // ✅ For PUT, only validate if the field is provided
+        if (roll_no !== undefined && !roll_no) errors.push('Roll number cannot be empty');
+        if (first_name !== undefined && !first_name) errors.push('First name cannot be empty');
+        if (last_name !== undefined && !last_name) errors.push('Last name cannot be empty');
+        if (class_name !== undefined && !class_name) errors.push('Class name cannot be empty');
+    }
+
+    // ✅ Email validation (always check if provided)
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+        errors.push('Invalid email format');
+    }
+
+    if (errors.length > 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Validation failed',
+            errors
+        });
+    }
+
+    next();
 };
 
 const validateAttendance = (req, res, next) => {

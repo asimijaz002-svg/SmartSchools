@@ -155,20 +155,46 @@ const classRepository = {
     },
 
     // Get classes with student counts (for reporting)
-    findAllWithCounts: async ({ academic_session_id, campus_id }) => {
-        const query = `
+    findAll: async ({ search, academic_session_id, sortBy, sortOrder, limit, offset, campus_id }) => {
+        let query = `
             SELECT c.*, 
-                   (SELECT COUNT(*) FROM students s 
-                    WHERE s.class_name = c.name 
-                    AND s.academic_session_id = c.academic_session_id 
-                    AND s.deleted_at IS NULL) as student_count
+                   u.username as teacher_name,
+                   CONCAT(c.name, ' ', IFNULL(c.section, '')) as full_name
             FROM classes c
-            WHERE c.academic_session_id = ? AND c.campus_id = ?
-            ORDER BY c.name
+            LEFT JOIN users u ON c.class_teacher_id = u.id
+            WHERE c.campus_id = ?
         `;
-        const [rows] = await db.execute(query, [academic_session_id, campus_id || 1]);
+        const queryParams = [campus_id || 1];
+    
+        // ✅ Only add academic_session_id if it exists
+        if (academic_session_id) {
+            query += ` AND c.academic_session_id = ?`;
+            queryParams.push(academic_session_id);
+        }
+    
+        if (search) {
+            query += ` AND (c.name LIKE ? OR c.section LIKE ?)`;
+            queryParams.push(`%${search}%`, `%${search}%`);
+        }
+    
+        const allowedSortFields = ['name', 'section', 'created_at'];
+        const sortByField = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
+        const sortOrderValue = (sortOrder && sortOrder.toUpperCase() === 'ASC') ? 'ASC' : 'DESC';
+        
+        query += ` ORDER BY c.${sortByField} ${sortOrderValue}`;
+    
+        if (limit) {
+            query += ` LIMIT ? OFFSET ?`;
+            queryParams.push(parseInt(limit) || 10, parseInt(offset) || 0);
+        }
+    
+        console.log('🔍 SQL Query:', query);
+        console.log('🔍 Query Params:', queryParams);
+    
+        const [rows] = await db.execute(query, queryParams);
         return rows;
-    }
-};
+    } // Closes the method
+
+} // Closes the Class or Object block
 
 module.exports = classRepository;

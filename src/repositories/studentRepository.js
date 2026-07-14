@@ -113,60 +113,65 @@ const studentRepository = {
     findAll: async ({ search, class_name, academic_session_id, sortBy, sortOrder, limit, offset }) => {
         let query = `SELECT * FROM students WHERE deleted_at IS NULL`;
         const queryParams = [];
-
-        if (academic_session_id) {
+    
+        if (academic_session_id && !isNaN(academic_session_id)) {
             query += ` AND academic_session_id = ?`;
-            queryParams.push(academic_session_id);
+            queryParams.push(parseInt(academic_session_id));
         }
-
+    
         if (class_name) {
             query += ` AND class_name = ?`;
             queryParams.push(class_name);
         }
-
+    
         if (search) {
             query += ` AND (first_name LIKE ? OR last_name LIKE ? OR roll_no LIKE ? OR email LIKE ?)`;
             queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
-
-        const allowedSortFields = ['first_name', 'last_name', 'roll_no', 'created_at'];
+    
+        const allowedSortFields = ['roll_no', 'first_name', 'last_name', 'created_at'];
         const sortByField = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
         const sortOrderValue = (sortOrder && sortOrder.toUpperCase() === 'ASC') ? 'ASC' : 'DESC';
         
         query += ` ORDER BY ${sortByField} ${sortOrderValue}`;
-
+    
+        // ✅ FIX: Use LIMIT start, count instead of LIMIT ? OFFSET ?
         if (limit) {
-            query += ` LIMIT ? OFFSET ?`;
-            queryParams.push(parseInt(limit), parseInt(offset) || 0);
+            const start = parseInt(offset) || 0;
+            const count = parseInt(limit) || 10;
+            query += ` LIMIT ${start}, ${count}`;
         }
-
+    
+        console.log('🔍 SQL Query:', query);
+        console.log('🔍 Query Params:', queryParams);
+    
         const [rows] = await db.execute(query, queryParams);
         return rows;
     },
 
-    // Count total students (for pagination)
-    countAll: async ({ search, class_name, academic_session_id }) => {
-        let query = `SELECT COUNT(*) as total FROM students WHERE deleted_at IS NULL`;
-        const queryParams = [];
+    // Count total students (for pagination) - FIXED
+countAll: async ({ search, class_name, academic_session_id }) => {
+    let query = `SELECT COUNT(*) as total FROM students WHERE deleted_at IS NULL`;
+    const queryParams = [];
 
-        if (academic_session_id) {
-            query += ` AND academic_session_id = ?`;
-            queryParams.push(academic_session_id);
-        }
+    if (academic_session_id && !isNaN(academic_session_id)) {
+        query += ` AND academic_session_id = ?`;
+        queryParams.push(parseInt(academic_session_id));
+    }
 
-        if (class_name) {
-            query += ` AND class_name = ?`;
-            queryParams.push(class_name);
-        }
+    if (class_name) {
+        query += ` AND class_name = ?`;
+        queryParams.push(class_name);
+    }
 
-        if (search) {
-            query += ` AND (first_name LIKE ? OR last_name LIKE ? OR roll_no LIKE ? OR email LIKE ?)`;
-            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
-        }
+    if (search) {
+        query += ` AND (first_name LIKE ? OR last_name LIKE ? OR roll_no LIKE ? OR email LIKE ?)`;
+        queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    }
 
-        const [rows] = await db.execute(query, queryParams);
-        return rows[0].total;
-    },
+    const [rows] = await db.execute(query, queryParams);
+    return rows[0].total;
+},
 
     // Update student
     update: async (id, updateData, connection = null) => {

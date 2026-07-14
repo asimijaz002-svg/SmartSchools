@@ -34,7 +34,7 @@ console.log('------------------------------------');
 router.get(
     '/',
     protect,
-    checkPermission('manage:students'), // 🟢 Comma fixed here
+    checkPermission('read:students'), // 🟢 Comma fixed here
     studentController.getAllStudents
 );
 
@@ -42,7 +42,7 @@ router.get(
 router.get(
     '/:id',
     protect,
-    checkPermission('manage:students'), // 🟢 Semicolon changed to comma here
+    checkPermission('read:students'), // 🟢 Semicolon changed to comma here
     studentController.getStudentById
 );
 
